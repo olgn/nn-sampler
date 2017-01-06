@@ -8,9 +8,12 @@
 
 import os
 import wave
+import numpy as np
+
+windowSize = 512	
 
 def getData():
-	audioData = []
+	audioFiles = []
 	path = '/Users/alex/projects/nn-sampler/scripts/kicks/'
 	#audioData = wave.open(path)
 	startFolder = os.listdir(path)
@@ -18,8 +21,37 @@ def getData():
 		#print(file)
 		if (file.endswith('.wav')):
 			wav = wave.open(path + file)
-			audioData.append(wav.readframes(wav.getnframes()))
+			audio = wav.readframes(wav.getnframes())
+			print(audio[0])
+			audioFiles.append(audio)
 
+	numFiles = len(audioFiles)
+
+	Y = [] 
+	X = []
+
+	for file in range(numFiles):
+		audioData = audioFiles[file]
+		totalSamples = len(audioData)
+		inputWindow = []
+
+		for t in range(totalSamples - 1):
+			left = t - windowSize - 1
+			right = t
+
+			if (np.mod(right, 100) == 0):
+				print('processed' , right, 'rows of data')
+
+			for n in range(0,windowSize):
+				idx = left + n
+				if idx >= 0:
+					inputWindow.append(audioData[idx])
+				else:
+					inputWindow.append(0)
+
+			X.append(inputWindow)
+			output = audioData[right]
+			Y.append(output)
 	#print(len(audioData))
 
 	#print(audioData[0][0])
@@ -28,7 +60,7 @@ def getData():
 	#quantizes to 256 values
 
 	#function createData()
-	return audioData
+	return [X,Y]
 
-x = getData()
-print(x[0][0])
+data = getData()
+print(np.size(data))

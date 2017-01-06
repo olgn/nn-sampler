@@ -4,6 +4,8 @@ import numpy as np
 import scipy as sp
 from sklearn import neural_network
 
+#WARM START IS UR FRIEND
+
 
 # define the structure of the network
 	#how many layers
