@@ -27,12 +27,11 @@ trainingBatchesBetweenFileGeneration = 10
 # 	see: http://scikit-learn.org/stable/modules/neural_networks_supervised.html#tips-on-practical-use
 inputScale = 1 / 65536
 
-def getData():
+def getData(path):
 	generatedFileNumber = 1	
 	trainingBatchesComplete = 0
 	audioFiles = []
 	allAudioData = []
-	path = '/Users/alex/projects/nn-sampler/scripts/kicks/'
 	startFolder = os.listdir(path)
 
 	for file in startFolder:
@@ -71,7 +70,7 @@ def getData():
 					# print('Y[0]: ', Y[0])
 
 					# for n in range(trainingIterationsPerBatch):
-					network.mlp.fit(X, Y)
+					network.mlp.partial_fit(X, Y)
 					
 					trainingBatchesComplete += 1
 					X, Y = [], []
