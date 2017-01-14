@@ -1,1 +1,3 @@
 *.asd
+output/*
+__pycache__
