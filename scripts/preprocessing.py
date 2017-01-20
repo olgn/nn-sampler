@@ -14,10 +14,7 @@ import network
 import random
 
 windowSize = 2048
-classes = range(-32768, 32767)
 generateSampleRate = 44100
-generateChannels = 1
-generateLength = 1
 
 trainingBatchSize = 1000
 trainingIterationsPerBatch = 10
@@ -25,14 +22,15 @@ trainingBatchesBetweenFileGeneration = 10
 
 # mlp classifier is sensitive to feature scaling so we transform inputs to floats from -1 to 1
 # 	see: http://scikit-learn.org/stable/modules/neural_networks_supervised.html#tips-on-practical-use
-inputScale = 1 / 65536
+inputScale = 1 / 65534
 
-def getData(path):
+def getData(path, generateLength = 1):
 	generatedFileNumber = 1	
 	trainingBatchesComplete = 0
 	audioFiles = []
 	allAudioData = []
 	startFolder = os.listdir(path)
+	generateChannels = 0
 
 	for file in startFolder:
 		#print(file)
@@ -40,6 +38,9 @@ def getData(path):
 			wav = wave.open(path + file)
 			waveData = wav.readframes(wav.getnframes())
 			audio = struct.unpack("%ih" % (wav.getnframes() * wav.getnchannels()), waveData)
+
+			if(generateChannels == 0):
+				generateChannels = wav.getnchannels()
 			
 			audioFiles.append(list(audio))
 			allAudioData += list(audio)
@@ -70,43 +71,44 @@ def getData(path):
 					# print('Y[0]: ', Y[0])
 
 					# for n in range(trainingIterationsPerBatch):
-					network.mlp.partial_fit(X, Y)
+					network.mlp.fit(X, Y)
 					
 					trainingBatchesComplete += 1
 					X, Y = [], []
 
 				if(trainingBatchesComplete >= (generatedFileNumber) * trainingBatchesBetweenFileGeneration):
 					generatedAudio = (np.zeros(windowSize, dtype=np.int) - (10000 / inputScale)).tolist()
-					# generatedAudio = (np.random.rand(windowSize) / inputScale).tolist()
 
-					generatedWavePath = '/Users/alex/projects/nn-sampler/scripts/output/output-' + str(generatedFileNumber) + '.wav'
+					generatedWavePath = path + 'output/output-' + str(generatedFileNumber) + '.wav'
 					generatedWave = wave.open(generatedWavePath, 'w')
 					generatedWave.setnchannels(generateChannels)
 					generatedWave.setframerate(generateSampleRate)
 					generatedWave.setsampwidth(2)
 
-					generatedWaveSampleCount = (generateLength * generateSampleRate)
+					generatedWaveSampleCount = generateLength * generateSampleRate * generateChannels
 
 					for i in range(windowSize, generatedWaveSampleCount + windowSize):
 						window = np.asarray(generatedAudio[i - windowSize:i]).reshape(1, -1) * inputScale
 						out = network.mlp.predict(window)[0]
 
-						# if(np.mod(i, 64) == 0):
-						# 	print('window: ')
-						# 	print(window)
-						# 	print('output: ', out)
-		
 						generatedAudio.append(int(out / inputScale))
 
 					try:
-						generatedWave.writeframes(struct.pack("%ih" % (generatedWaveSampleCount * generatedWave.getnchannels()), *generatedAudio[windowSize:len(generatedAudio)]))
+						generatedWave.writeframes(struct.pack("%ih" % (generatedWaveSampleCount), *generatedAudio[windowSize:len(generatedAudio)]))
 						print('generated wave file: ', generatedWavePath)
-					except struct.error:
-						print('struct error while saving file: ', generatedWavePath)
+					except struct.error as error:
+						try:
+							generatedAudio = (np.asarray(generatedAudio) * 0.8).astype(int).tolist();
+							generatedWave.writeframes(struct.pack("%ih" % (generatedWaveSampleCount), *generatedAudio[windowSize:len(generatedAudio)]))
+							print('generated wave file: ', generatedWavePath)
+						except struct.error as error:
+							print('struct error while saving file ', generatedWavePath, ': ', error)
 
 					generatedFileNumber = generatedFileNumber + 1
 
 			print('Finished processing file ', file + 1)
+
+			# generatedAudio = (np.random.rand(windowSize) / inputScale).tolist()
 
 
 	#print(audioData[0][0])
